@@ -173,7 +173,7 @@ ensure_task_finals_image() {
     echo "Built '$image'."
 }
 
-# Builds <team>-server:finals from ./finals/Dockerfile (relative to this script). < scuffed. but works
+# note finals is a hardcoded filename
 build_server_finals_image() {
     local image="$TEAM_NAME-server:finals"
     local finals_dir="$script_dir/finals"
@@ -283,11 +283,10 @@ submit_finals() {
 # depends_on: HQ -> 5 model containers -> til-finals (which only reports healthy
 # once it's actually connected to the HQ). A one-shot `til-starter` service then
 # POSTs /start and polls /match_status until the match ends; --abort-on-container-exit
-# tears the stack down when it does. This script just prepares the env + a local
-# -image override and runs that single `up`.
+# tears the stack down when it does. This script just prepares the env and runs
+# that single `up` against the local <team>-<task>:finals images.
 #
 # Globals below are read by the EXIT trap, so they must NOT be declared `local`.
-TEST_OVERRIDE=""
 TEST_CLEANED=""
 declare -a TEST_DC=()
 
@@ -319,7 +318,6 @@ finals_test_cleanup() {
         echo "── Tearing down the stack ─────────────────────────────"
         "${TEST_DC[@]}" down --remove-orphans >/dev/null 2>&1 || true
     fi
-    [ -n "$TEST_OVERRIDE" ] && rm -f "$TEST_OVERRIDE" 2>/dev/null
     return 0
 }
 
@@ -349,8 +347,7 @@ run_finals_test() {
     load_env_defaults
     : "${COMPETITION_SERVER_PORT:=8000}"
     : "${CONFIG:=config_test}"
-    : "${REPO_NAME:=local-test}"   # only used for base-file interpolation; images come from the override
-    export COMPETITION_SERVER_PORT CONFIG REPO_NAME
+    export COMPETITION_SERVER_PORT CONFIG
 
     assert_team   # TEAM_NAME may have come from .env just now
 
@@ -381,8 +378,8 @@ run_finals_test() {
     local team="$TEAM_NAME"
 
     # Required local model images (the full finals stack). The server image is (re)built
-    # below by `up --build`; the model images are used as-is via the override (pull_policy
-    # never), so error early with a friendly message if any are missing.
+    # below by `up --build`; the model images are used as-is (pull_policy never in the
+    # compose file), so error early with a friendly message if any are missing.
     local missing=() t
     for t in asr cv noise nlp ae; do
         docker image inspect "$team-$t:finals" >/dev/null 2>&1 || missing+=("$team-$t:finals")
@@ -394,11 +391,9 @@ run_finals_test() {
         exit 1
     fi
 
-    # Temp compose override: point the server + model images at the local :finals tags
-    # with pull_policy:never so the whole test runs offline against locally built images.
-    TEST_OVERRIDE="$(mktemp --suffix=.yml 2>/dev/null || mktemp)"
-
-    TEST_DC=(docker compose -f "$script_dir/docker-compose-test.yml" -f "$TEST_OVERRIDE")
+    # docker-compose-test.yml references the local <team>-<task>:finals tags directly
+    # with pull_policy:never, so the whole test runs offline against locally built images.
+    TEST_DC=(docker compose -f "$script_dir/docker-compose-test.yml")
     trap finals_test_cleanup EXIT
     trap 'echo; echo "Interrupted."; exit 130' INT TERM
 
@@ -459,6 +454,10 @@ finals_test_summary() {
 
 case "$1" in
     submit)
+        case "$2" in
+            -h|--help) submit_usage; exit 0 ;;
+            "")        submit_usage; exit 1 ;;
+        esac
         if [ "$2" = "finals" ]; then
             submit_all=false
             build_all=false
@@ -480,7 +479,6 @@ case "$1" in
         fi
         tag=${3:-"latest"}
         image="$TEAM_NAME-$task"
-        image_ref="$image:$tag"
 
         echo "Image:   $image"
         echo "Tag:     ${tag:-<none>}"
@@ -502,6 +500,10 @@ case "$1" in
             --container-ports $port --version-aliases default
         ;;
     build)
+        case "$2" in
+            -h|--help) build_usage; exit 0 ;;
+            "")        build_usage; exit 1 ;;
+        esac
         if [ "$2" = "finals" ]; then
             build_all=false
             for arg in "${@:3}"; do
@@ -525,7 +527,7 @@ case "$1" in
         cd "$til_folder/$task" || { echo "Could not find directory for task '$task'! Are you sure you have a directory named '$task' in your 'til-26' directory?"; til_folder_warning; cd "$cwd"; exit 1; }
         docker build -t $TEAM_NAME-$task:$tag -f Dockerfile .
         cd "$cwd"
-        echo "Build complete! You can now test this image with 'til test $task $tag' or submit this image with 'til submit $task $tag'"
+        echo "Build complete! You can now test this image with 'til test $task $tag' or submit this image with 'til submit $task $tag' (If you are currently in your instance and have access to the til cli.)"
         ;;
     test)
         # This repo only tests the finals stack end-to-end, so `test` always runs the
@@ -535,6 +537,7 @@ case "$1" in
         for arg in "${@:2}"; do
             case "$arg" in
                 finals)     ;;  # optional — finals is the only thing this tests
+                -h|--help)  test_usage; exit 0 ;;
                 --keep-up)  KEEP_UP=true ;;
                 --no-build) NO_BUILD=true ;;
                 *) echo "WARNING: ignoring unknown arg '$arg' for 'test'." ;;

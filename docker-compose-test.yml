@@ -89,7 +89,7 @@ services:
 
   til-finals:
     build: finals/
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-server:finals
+    image: ${TEAM_NAME}-server:finals
     env_file:
       - .env
     container_name: ${TEAM_NAME}-finals
@@ -123,7 +123,8 @@ services:
       start_period: 3s
 
   til-asr:
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-asr:finals
+    image: ${TEAM_NAME}-asr:finals
+    pull_policy: never
     container_name: ${TEAM_NAME}-asr
     restart: unless-stopped
     environment:
@@ -143,11 +144,12 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 5s
       timeout: 30s
-      retries: 5
+      retries: 30
       start_period: 3s
 
   til-cv:
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-cv:finals
+    image: ${TEAM_NAME}-cv:finals
+    pull_policy: never
     container_name: ${TEAM_NAME}-cv
     restart: unless-stopped
     environment:
@@ -167,11 +169,12 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
       interval: 5s
       timeout: 30s
-      retries: 5
+      retries: 30
       start_period: 3s
 
   til-noise:
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-noise:finals
+    image: ${TEAM_NAME}-noise:finals
+    pull_policy: never
     container_name: ${TEAM_NAME}-noise
     restart: unless-stopped
     environment:
@@ -191,11 +194,12 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
       interval: 5s
       timeout: 30s
-      retries: 5
+      retries: 30
       start_period: 3s
 
   til-nlp:
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-nlp:finals
+    image: ${TEAM_NAME}-nlp:finals
+    pull_policy: never
     container_name: ${TEAM_NAME}-nlp
     restart: unless-stopped
     environment:
@@ -215,11 +219,12 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5004/health')"]
       interval: 5s
       timeout: 30s
-      retries: 5
+      retries: 30
       start_period: 3s
 
   til-ae:
-    image: asia-southeast1-docker.pkg.dev/til-ai-2026/repo-til-26-${TEAM_NAME}/${TEAM_NAME}-ae:finals
+    image: ${TEAM_NAME}-ae:finals
+    pull_policy: never
     container_name: ${TEAM_NAME}-ae
     restart: unless-stopped
     environment:
@@ -239,5 +244,5 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5005/health')"]
       interval: 5s
       timeout: 30s
-      retries: 5
+      retries: 30
       start_period: 3s
